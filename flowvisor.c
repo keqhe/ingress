@@ -50,8 +50,8 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <pcap.h>
+#include "/usr/include/pcap.h" // Sourav:
 #include <pthread.h>
 
 
@@ -85,7 +85,7 @@
 #define MAXBYTES2CAPTURE 2048 
 /* --max-idle: Maximum idle time, in seconds, before flows expire. */
 int max_idle = 60;
-
+pthread_t x;
 int NeedConfig=0;
 int ShouldStop = 0;
 int newswitch = 0;
@@ -565,7 +565,7 @@ int wait_on_all(flowvisor_context * fv_ctx)
 }
 
 /* listenraw: Opens network interface and calls pcap_loop() */
-/*
+
 void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 
 	int i=0, count=0;
@@ -615,13 +615,13 @@ void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 	}
 	return NULL;
 }
-*/
+
 
 /* processPacket(): Callback function called by pcap_loop() everytime a packet */
 /* arrives to the network card. This function prints the captured raw data in  */
 /* hexadecimal.                                                                */
 
-/*
+
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
 
  int i=0, *counter = (int *)arg;
@@ -641,7 +641,7 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
   }
  return;
 }
-*/
+
 
 /**************************************************************************
 *****main
