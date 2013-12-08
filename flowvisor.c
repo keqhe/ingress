@@ -75,8 +75,12 @@
 #include "flowvisor.h"
 
 #include "vlog.h"
-#define THIS_MODULE VLM_rconn
 
+#include <pcap.h>
+#include <pthread.h>
+
+#define THIS_MODULE VLM_rconn
+#define MAXBYTES2CAPTURE 2048 
 /* --max-idle: Maximum idle time, in seconds, before flows expire. */
 int max_idle = 60;
 
@@ -276,7 +280,7 @@ void new_switch(flowvisor_context *fv_ctx, struct vconn *vconn,
 {
         struct switch_ * sw;
         static int new_switchID=-1;
-        int test1, test2; /*keqiang*/
+        //int test1, test2; /*keqiang*/
         sw = &fv_ctx->switches[fv_ctx->n_switches++];
         printf("new_switch: fc_ctx->n_switches %d\n", fv_ctx->n_switches);
         sw->rc= rconn_new_from_vconn(name, vconn);
@@ -555,6 +559,81 @@ int wait_on_all(flowvisor_context * fv_ctx)
         }
 	return 0;
 }
+
+
+/* listenraw: Opens network interface and calls pcap_loop() */
+void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
+
+	int i=0, count=0;
+	pcap_t *descr = NULL;
+	char errbuf[PCAP_ERRBUF_SIZE], *device=NULL;
+	memset(errbuf,0,PCAP_ERRBUF_SIZE);
+ 
+	struct bpf_program fp; //the complied filter
+	char filter_exp[] = "ip or arp or icmp";//filter expression
+	bpf_u_int32 mask; //Our net mask
+	bpf_u_int32 net; //our IP
+
+	device = interface;
+
+	if (pcap_lookupnet(device, &net, &mask, errbuf) == -1) {
+		 fprintf(stderr, "Can't get netmask for device %s\n", device);
+		 net = 0;
+		 mask = 0;
+	}
+
+	if ( (device = pcap_lookupdev(errbuf)) == NULL){
+        	fprintf(stderr, "ERROR: %s\n", errbuf);
+        	exit(1);
+	}
+ 
+	printf("Opening device %s\n", device);
+	/* Open device in promiscuous mode */
+        if ( (descr = pcap_open_live(device, MAXBYTES2CAPTURE, 1,  512, errbuf)) == NULL){
+                fprintf(stderr, "ERROR: %s\n", errbuf);
+                exit(1);
+        }
+
+	/* Compile and apply the filter */
+	if (pcap_compile(descr, &fp, filter_exp, 0, net) == -1) {
+		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(descr));
+		return(1);
+	}
+	if (pcap_setfilter(descr, &fp) == -1) {
+		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(descr));
+		return(1);
+ 	}
+
+	/* Loop forever & call processPacket() for every received packet*/
+	if ( pcap_loop(descr, -1, processPacket, (u_char *)&count) == -1){
+		fprintf(stderr, "ERROR: %s\n", pcap_geterr(descr) );
+		exit(1);
+	}
+	return NULL;
+}
+
+/* processPacket(): Callback function called by pcap_loop() everytime a packet */
+/* arrives to the network card. This function prints the captured raw data in  */
+/* hexadecimal.                                                                */
+void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
+
+ int i=0, *counter = (int *)arg;
+
+ printf("Packet Count: %d\n", ++(*counter));
+ printf("Received Packet Size: %d\n", pkthdr->len);
+ printf("Payload:\n");
+ for (i=0; i<pkthdr->len; i++){
+
+    if ( isprint(packet[i]) ) /* If it is a printable character, print it */
+        printf("%c ", packet[i]);
+    else
+        printf(". ");
+
+     if( (i%16 == 0 && i!=0) || i==pkthdr->len-1 )
+        printf("\n");
+  }
+ return;
+}
 /**************************************************************************
 *****main
 ****
@@ -580,6 +659,12 @@ int main(int argc, char *argv[])
 	vlog_init();
 	init_guest(fv_ctx);
 
+        /***********threads********************
+	*/
+	/* this variable is our reference to the second thread */
+	pthread_t listen_raw_thread;
+	/*************paramterns*************
+	*/
 	if (argc - optind < 1) {
 		ofp_fatal(0, "at least one vconn argument required; use --help for usage");
 	}
