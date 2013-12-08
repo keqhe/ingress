@@ -8,10 +8,10 @@ AM_CFLAGS = -DRUNDIR=\"$(rundir)\" -Wall -Wshadow @LARGEFILES_CFLAGS@
 AM_LDFLAGS = @LARGEFILES_LDFLAGS@
 
 
-CFLAGS+=-I$(OFSRC)/include -I$(OFSRC)/lib
-LDFLAGS+=-L$(OFSRC)/lib -lm
+CFLAGS+=-I$(OFSRC)/include -I$(OFSRC)/lib -I/usr/include/ 
+LDFLAGS+=-L$(OFSRC)/lib -lm -lpcap  -lpthread
 
-LDADD=$(OFSRC)/lib/libopenflow.a -ldl
+LDADD=$(OFSRC)/lib/libopenflow.a -ldl 
 
 
 bin_PROGRAMS=flowvisor

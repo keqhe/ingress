@@ -51,6 +51,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pcap.h>
+#include <pthread.h>
+
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -76,8 +80,6 @@
 
 #include "vlog.h"
 
-#include <pcap.h>
-#include <pthread.h>
 
 #define THIS_MODULE VLM_rconn
 #define MAXBYTES2CAPTURE 2048 
@@ -107,6 +109,8 @@ static int connect_switch_to_guest(flowvisor_context *fv_ctx, int switchIndex, i
 static void handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex);
 static int handle_guest(flowvisor_context *fv_ctx, int guestIndex);
 int wait_on_all(flowvisor_context * fv_ctx);
+void *listen_raw(struct flowvisor_context *fv_ctx, char * interface);
+void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet);
 /*********************************************
  *      parse options
  ********************************/
@@ -536,7 +540,7 @@ static int handle_guest(flowvisor_context *fv_ctx, int guestIndex)
  * wait_on_all()
  *      set all of the vcons and rcons to the wait state
  *      in prepartion for a poll_block()
- */
+*/ 
 int wait_on_all(flowvisor_context * fv_ctx)
 {
         int i,j;
@@ -560,8 +564,8 @@ int wait_on_all(flowvisor_context * fv_ctx)
 	return 0;
 }
 
-
 /* listenraw: Opens network interface and calls pcap_loop() */
+/*
 void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 
 	int i=0, count=0;
@@ -588,13 +592,13 @@ void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 	}
  
 	printf("Opening device %s\n", device);
-	/* Open device in promiscuous mode */
+	//Open device in promiscuous mode
         if ( (descr = pcap_open_live(device, MAXBYTES2CAPTURE, 1,  512, errbuf)) == NULL){
                 fprintf(stderr, "ERROR: %s\n", errbuf);
                 exit(1);
         }
 
-	/* Compile and apply the filter */
+	// Compile and apply the filter
 	if (pcap_compile(descr, &fp, filter_exp, 0, net) == -1) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(descr));
 		return(1);
@@ -604,17 +608,20 @@ void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 		return(1);
  	}
 
-	/* Loop forever & call processPacket() for every received packet*/
+	//Loop forever & call processPacket() for every received packet
 	if ( pcap_loop(descr, -1, processPacket, (u_char *)&count) == -1){
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(descr) );
 		exit(1);
 	}
 	return NULL;
 }
+*/
 
 /* processPacket(): Callback function called by pcap_loop() everytime a packet */
 /* arrives to the network card. This function prints the captured raw data in  */
 /* hexadecimal.                                                                */
+
+/*
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
 
  int i=0, *counter = (int *)arg;
@@ -624,7 +631,7 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
  printf("Payload:\n");
  for (i=0; i<pkthdr->len; i++){
 
-    if ( isprint(packet[i]) ) /* If it is a printable character, print it */
+    if ( isprint(packet[i]) ) // If it is a printable character, print it
         printf("%c ", packet[i]);
     else
         printf(". ");
@@ -634,6 +641,8 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
   }
  return;
 }
+*/
+
 /**************************************************************************
 *****main
 ****
