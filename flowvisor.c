@@ -116,7 +116,7 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
 
 struct thread_parm_t{
   struct flowvisor_context * context;
-  char  port[128];
+  char  interface[128];
 };
 
 /*********************************************
@@ -427,10 +427,10 @@ handle_switch_unidentified(flowvisor_context * fv_ctx, int switchIndex)
         flowvisor_debug("handle_switch_unidentified(switchID=%d)\n",sw->id);
         msg = rconn_recv(sw->rc);
         if(msg) {               // if we actually got something from the switch
-                printf("GOT MSG from SWITCH!!! MANm got MSG\n");
+                flowvisor_debug("GOT MSG from SWITCH, MAN!\n");
 
                 sw->id = 1234; // give it a positive number
-                printf("handle_unidentified: sw-id: %d\n", sw->id);
+                flowvisor_debug("handle_unidentified: sw-id: %d\n", sw->id);
 		flowvisor_log("fv_ctx->n_guests:%d\n", fv_ctx->n_guests);
                 // Connect to guests if we've identified the switch
                 if (sw->id >= 0) {
@@ -466,7 +466,7 @@ static int connect_switch_to_guest(flowvisor_context *fv_ctx, int switchIndex, i
 	//g->vconn name should be initialized..
         // create a connection to the guest's controller
         retval = vconn_open(g->vconn_name,OFP_VERSION, &neo_v);
-        printf("connecting to the guest cotroller...OFP_version:%d,%d\n", OFP_VERSION, retval);
+        flowvisor_debug("connecting to the guest cotroller...OFP_version:%d,%d\n", OFP_VERSION, retval);
         if (retval) {
                 flowvisor_err("%s: connect: %s", g->vconn_name, strerror(retval));
                 return -1;
@@ -502,17 +502,17 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 void init_guest(struct flowvisor_context *fv_ctx)
 {
 	struct guest g;
-	const char* name = "tcp:192.168.8.130";
+	const char* name = "tcp:127.0.0.1";
 	fv_ctx->n_guests = 0;
 	fv_ctx->n_switches = 0;
 	fv_ctx->n_listeners = 0;
 
 	g.magic = FV_GUEST_MAGIC;
 	g.n_switches = 0;
-	printf("TESR\n");
+	flowvisor_log("Initialize the GUEST\n");
 	strncpy(g.vconn_name,name,MAX_VCONN_NAME_LEN);	
 	fv_ctx->guests[fv_ctx->n_guests++] = g;
-	printf("TESR fv_ctx->n_guests:%d\n", fv_ctx->n_guests);
+	printf("Initialize the GUEST STATUS:%d\n", fv_ctx->n_guests);
 }
 
 /******************************************************
@@ -578,15 +578,15 @@ void *listen_raw(void* parms){
 
 	struct thread_parm_t * parameters;
 	parameters = (struct thread_parm_t *) parms;
-	//struct flowvisor_context *fv_cur_ctx = (parms->context);
-	char * interface = "eth0";
+	struct flowvisor_context *fv_cur_ctx = parameters->context;
+	char * interface = parameters->interface;
 	int  count=0;
 	pcap_t *descr = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE], *device=NULL;
 	memset(errbuf,0,PCAP_ERRBUF_SIZE);
  
 	struct bpf_program fp; //the complied filter
-	char filter_exp[] = "ip or arp or icmp";//filter expression
+	char filter_exp[] = "arp";//filter expression
 	bpf_u_int32 mask; //Our net mask
 	bpf_u_int32 net; //our IP
 
@@ -597,13 +597,13 @@ void *listen_raw(void* parms){
 		 net = 0;
 		 mask = 0;
 	}
-
+	/*
 	if ( (device = pcap_lookupdev(errbuf)) == NULL){
         	fprintf(stderr, "ERROR: %s\n", errbuf);
         	exit(1);
 	}
- 
-	printf("Opening device %s\n", device);
+ 	*/
+	flowvisor_log("Opening device %s\n", device);
 	//Open device in promiscuous mode
         if ( (descr = pcap_open_live(device, MAXBYTES2CAPTURE, 1,  512, errbuf)) == NULL){
                 fprintf(stderr, "ERROR: %s\n", errbuf);
@@ -621,7 +621,7 @@ void *listen_raw(void* parms){
  	}
 
 	//Loop forever & call processPacket() for every received packet
-	if ( pcap_loop(descr, -1, processPacket, (u_char *)&count) == -1){
+	if ( pcap_loop(descr, -1, processPacket, (u_char *)fv_cur_ctx) == -1){
 		fprintf(stderr, "ERROR: %s\n", pcap_geterr(descr) );
 		exit(1);
 	}
@@ -636,22 +636,53 @@ void *listen_raw(void* parms){
 
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
 
- int i=0, *counter = (int *)arg;
+ 	int i=0;
+	struct timeval cur_time;
+	struct flowvisor_context *myctx = (struct flowvisor_context *)arg;
+	struct guest *g= &myctx->guests[0]; //there is only one guest
+	
+	//printf("Packet Count: %d\n", ++(*counter));
+	flowvisor_log("processPacket, Received Packet Size: %d\n", pkthdr->len);
+	//printf("Payload:\n");
 
- printf("Packet Count: %d\n", ++(*counter));
- printf("Received Packet Size: %d\n", pkthdr->len);
- printf("Payload:\n");
- for (i=0; i<pkthdr->len; i++){
+	//if (pkthdr->len <=128)	{	
+	/*try to generate packet_in message to guest
+	*/
+	unsigned int pkt_len = pkthdr->len;
+	struct ofpbuf *buf;
+        struct ofp_packet_in *opi;
+        unsigned int len = offsetof(struct ofp_packet_in, data) + pkt_len;
 
-    if ( isprint(packet[i]) ) // If it is a printable character, print it
-        printf("%c ", packet[i]);
-    else
-        printf(". ");
+        buf = ofpbuf_new(len);
+        ofpbuf_put_zeros(buf, len);
+        opi = (struct ofp_packet_in *)buf->data;
+        opi->header.version = OFP_VERSION;
+        opi->header.type = OFPT_PACKET_IN;
+        opi->header.length = htons(len);
+        opi->header.xid = 0xcafebeef;
+        opi->buffer_id = -1; //not buffered in switch
+        opi->total_len = htons(pkt_len); // ether frame length
+        opi->in_port = htons(OFPP_NONE); //FIXME: assume that it is from port 0
+        opi->reason = OFPR_NO_MATCH;
+        //opi->data = packet;// the pointer
+        memcpy(opi->data, packet, pkt_len);
+        rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
+	gettimeofday(&cur_time, NULL);
+	flowvisor_log("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
+	//}
+ 	/*
+	for (i=0; i<pkthdr->len; i++){
 
-     if( (i%16 == 0 && i!=0) || i==pkthdr->len-1 )
-        printf("\n");
-  }
- return;
+   		if ( isprint(packet[i]) ) // If it is a printable character, print it
+        	printf("%c ", packet[i]);
+    		else
+        	printf(". ");
+
+     		if( (i%16 == 0 && i!=0) || i==pkthdr->len-1 )
+        		printf("\n");
+  	}
+	*/
+ 	return;
 }
 
 
@@ -747,7 +778,7 @@ int main(int argc, char *argv[])
 		if(round ++ == 2){
 			parm = malloc(sizeof( struct thread_parm_t));
 			parm->context = fv_ctx;
-			strcpy(parm->port, "eth0");
+			strcpy(parm->interface, "eth0");
 			rc = pthread_create(&listen_raw_thread, NULL, listen_raw, (void *)parm);
 			printf("creating thread for packet capture, status: %d\n", rc);
 		}
