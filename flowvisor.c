@@ -109,8 +109,16 @@ static int connect_switch_to_guest(flowvisor_context *fv_ctx, int switchIndex, i
 static void handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex);
 static int handle_guest(flowvisor_context *fv_ctx, int guestIndex);
 int wait_on_all(flowvisor_context * fv_ctx);
-void *listen_raw(struct flowvisor_context *fv_ctx, char * interface);
+void *listen_raw(void * parms);
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet);
+/*******************************struct declearation
+*/
+
+struct thread_parm_t{
+  struct flowvisor_context * context;
+  char  port[128];
+};
+
 /*********************************************
  *      parse options
  ********************************/
@@ -566,9 +574,13 @@ int wait_on_all(flowvisor_context * fv_ctx)
 
 /* listenraw: Opens network interface and calls pcap_loop() */
 
-void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
+void *listen_raw(void* parms){
 
-	int i=0, count=0;
+	struct thread_parm_t * parameters;
+	parameters = (struct thread_parm_t *) parms;
+	//struct flowvisor_context *fv_cur_ctx = (parms->context);
+	char * interface = "eth0";
+	int  count=0;
 	pcap_t *descr = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE], *device=NULL;
 	memset(errbuf,0,PCAP_ERRBUF_SIZE);
@@ -601,11 +613,11 @@ void *listen_raw(struct flowvisor_context *fv_ctx, char * interface){
 	// Compile and apply the filter
 	if (pcap_compile(descr, &fp, filter_exp, 0, net) == -1) {
 		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(descr));
-		return(1);
+		exit(1);
 	}
 	if (pcap_setfilter(descr, &fp) == -1) {
 		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(descr));
-		return(1);
+		exit(1);
  	}
 
 	//Loop forever & call processPacket() for every received packet
@@ -651,8 +663,9 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
 int main(int argc, char *argv[])
 {
 	int retval;
-	int i;
+	int i, rc, round = 0;
 	struct flowvisor_context *fv_ctx = flowvisor_context_malloc();
+	struct thread_parm_t         *parm=NULL;
 
 	struct timeval last_stats_dump;
 	//struct timeval s1,s2,s3;
@@ -731,6 +744,13 @@ int main(int argc, char *argv[])
 	while (ShouldStop==0){
 		handle_switches(fv_ctx);
 		handle_guest(fv_ctx, 0);
+		if(round ++ == 2){
+			parm = malloc(sizeof( struct thread_parm_t));
+			parm->context = fv_ctx;
+			strcpy(parm->port, "eth0");
+			rc = pthread_create(&listen_raw_thread, NULL, listen_raw, (void *)parm);
+			printf("creating thread for packet capture, status: %d\n", rc);
+		}
 		wait_on_all(fv_ctx);
 		poll_block();
 	}	

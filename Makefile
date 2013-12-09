@@ -89,7 +89,7 @@ AUTOMAKE = ${SHELL} /home/keqiang/myGit/lightflow/missing --run automake-1.11
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -I$(OFSRC)/include -I$(OFSRC)/lib -I/usr/include/
+CFLAGS = -g -O2 -I$(OFSRC)/include -I$(OFSRC)/lib
 CPP = gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -108,7 +108,7 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LARGEFILES_CFLAGS = -D_LARGEFILE_SOURCE  
 LARGEFILES_LDFLAGS =   
-LDFLAGS =  -L$(OFSRC)/lib -lm -lpcap -lpthread
+LDFLAGS =  -L$(OFSRC)/lib -lm
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
@@ -177,7 +177,7 @@ OFSRC = /home/keqiang/myGit/lightflow/../openflow
 rundir = $(localstatedir)/run
 AM_CFLAGS = -DRUNDIR=\"$(rundir)\" -Wall -Wshadow -D_LARGEFILE_SOURCE  
 AM_LDFLAGS =   
-LDADD = $(OFSRC)/lib/libopenflow.a -ldl 
+LDADD = $(OFSRC)/lib/libopenflow.a -ldl -lpcap -lpthread
 #bin_SCRIPTS=flowvisor_wrapper.pl
 EXTRA_DIST = regress BUGS example-confs
 flowvisor_SOURCES = flowvisor.c \
