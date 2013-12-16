@@ -543,13 +543,13 @@ void* handle_guest(void * parm)
         struct guest * g = &fv_ctx->guests[0];
 	struct rconn * this;
 	struct switch_ *dst_sw;
-	while (1) {
-	j ++ ;
-	if (j == 50000){
+	//while (1) {
+	//j ++ ;
+	//if (j == 50000){
 	
-		printf("DEBUG: in handle_guest, g->n_switches %d\n", g->n_switches);
-		j = 0;
-	}
+	//	printf("DEBUG: in handle_guest, g->n_switches %d\n", g->n_switches);
+	//	j = 0;
+	//}
 	for(i=0; i< g->n_switches; i++) // foreach guest controller connection, 1 per switch
         {
 		//printf("DEGUB IN handle_guest thread\n");
@@ -568,7 +568,7 @@ void* handle_guest(void * parm)
 			
 		}
 	}
-	}//while
+	//}//while
 	return NULL;
 }
 
@@ -807,12 +807,12 @@ int main(int argc, char *argv[])
 		  //     	rc = pthread_create(&handle_switches_thread, NULL, handle_switches, (void *)fv_ctx);
                     //    printf("creating thread for handle_switches, status: %d\n", rc);
 		//}
-		if (round == 3) {
-			rc = pthread_create(&handle_guest_thread, NULL, handle_guest, (void *)fv_ctx);
-                        printf("creating thread for handle_guest, status: %d\n", rc);
-		}
+		//if (round == 3) {
+		//	rc = pthread_create(&handle_guest_thread, NULL, handle_guest, (void *)fv_ctx);
+                //        printf("creating thread for handle_guest, status: %d\n", rc);
+		//}
 		handle_switches(fv_ctx);
-		//handle_guest(fv_ctx);
+		handle_guest(fv_ctx);
 		if(round == 4){
 			parm = malloc(sizeof( struct thread_parm_t));
 			parm->context = fv_ctx;
@@ -820,8 +820,8 @@ int main(int argc, char *argv[])
 			rc = pthread_create(&listen_raw_thread, NULL, listen_raw, (void *)parm);
 			printf("creating thread for packet capture, status: %d\n", rc);
 		}
-		//wait_on_all(fv_ctx);
-		//poll_block();
+		wait_on_all(fv_ctx);
+		poll_block();
 		round ++;
 		//if (round > 10) {
 		//	sleep(10);
