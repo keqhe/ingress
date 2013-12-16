@@ -238,7 +238,7 @@ struct flowvisor_context * flowvisor_context_malloc()
                 abort();
         }
         memset(fv_ctx,0,sizeof(struct flowvisor_context));
-        fv_ctx->EfficiencyLoops =10;    // down from 50, from original code
+        fv_ctx->EfficiencyLoops = 1;    // down from 50, from original code
         return fv_ctx;
 }
 void handle_usr1_signal(int sig )
@@ -495,7 +495,7 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
         msg = rconn_recv(sw->rc);
         if(msg) {               // if we actually got something from the switch
 		rconn_send(guest_sw->rc,ofpbuf_clone(msg),NULL);
-		flowvisor_log("SEND MSG to GUEST\n");
+		//flowvisor_log("SEND MSG to GUEST\n");
 	}
 }
 
@@ -512,7 +512,7 @@ void init_guest(struct flowvisor_context *fv_ctx)
 	flowvisor_log("Initialize the GUEST\n");
 	strncpy(g.vconn_name,name,MAX_VCONN_NAME_LEN);	
 	fv_ctx->guests[fv_ctx->n_guests++] = g;
-	printf("Initialize the GUEST STATUS:%d\n", fv_ctx->n_guests);
+	flowvisor_log("Initialize the GUEST STATUS:%d\n", fv_ctx->n_guests);
 }
 
 /******************************************************
@@ -525,6 +525,7 @@ static int handle_guest(flowvisor_context *fv_ctx, int guestIndex)
         unsigned int packets_sent;
         struct ofpbuf *msg;
         int i;
+	struct ofp_header *oh;
 
         struct guest * g = &fv_ctx->guests[guestIndex];
 	for(i=0; i< g->n_switches; i++) // foreach guest controller connection, 1 per switch
@@ -536,8 +537,11 @@ static int handle_guest(flowvisor_context *fv_ctx, int guestIndex)
 		//flowvisor_log("HANDLE_GUEST, packets_sent: %d\n", packets_sent);
                 msg = rconn_recv(this);
 		if(msg){
+			oh = msg->data;
+			if (oh->type != OFPT_PACKET_OUT && oh->type != OFPT_FLOW_MOD){
 			rconn_send(dst_sw->rc,msg,NULL);
-			flowvisor_log("HANDLE_GUEST, SEND MSG to SWITCH\n");
+			//flowvisor_log("HANDLE_GUEST, SEND MSG to SWITCH\n");
+			}
 			
 		}
 	}
@@ -586,7 +590,7 @@ void *listen_raw(void* parms){
 	memset(errbuf,0,PCAP_ERRBUF_SIZE);
  
 	struct bpf_program fp; //the complied filter
-	char filter_exp[] = "arp";//filter expression
+	char filter_exp[] = "udp";//filter expression
 	bpf_u_int32 mask; //Our net mask
 	bpf_u_int32 net; //our IP
 
@@ -642,10 +646,10 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
 	struct guest *g= &myctx->guests[0]; //there is only one guest
 	
 	//printf("Packet Count: %d\n", ++(*counter));
-	flowvisor_log("processPacket, Received Packet Size: %d\n", pkthdr->len);
+	//flowvisor_log("processPacket, Received Packet Size: %d\n", pkthdr->len);
 	//printf("Payload:\n");
 
-	//if (pkthdr->len <=128)	{	
+	if (pkthdr->len <=128)	{	
 	/*try to generate packet_in message to guest
 	*/
 	unsigned int pkt_len = pkthdr->len;
@@ -662,14 +666,14 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
         opi->header.xid = 0xcafebeef;
         opi->buffer_id = -1; //not buffered in switch
         opi->total_len = htons(pkt_len); // ether frame length
-        opi->in_port = htons(OFPP_NONE); //FIXME: assume that it is from port 0
+        opi->in_port = htons(OFPP_NONE); //FIXME: assume that it is from port None
         opi->reason = OFPR_NO_MATCH;
         //opi->data = packet;// the pointer
         memcpy(opi->data, packet, pkt_len);
-        rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
+        //rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
 	gettimeofday(&cur_time, NULL);
-	flowvisor_log("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
-	//}
+	printf("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
+	}
  	/*
 	for (i=0; i<pkthdr->len; i++){
 
@@ -771,6 +775,7 @@ int main(int argc, char *argv[])
 	while (!newswitch) {
 		do_new_switches(fv_ctx);
 	}
+	flowvisor_log("accept new switch success\n");
 	do_new_switches(fv_ctx);
 	while (ShouldStop==0){
 		handle_switches(fv_ctx);
@@ -778,12 +783,12 @@ int main(int argc, char *argv[])
 		if(round ++ == 2){
 			parm = malloc(sizeof( struct thread_parm_t));
 			parm->context = fv_ctx;
-			strcpy(parm->interface, "eth0");
+			strcpy(parm->interface, "lo");
 			rc = pthread_create(&listen_raw_thread, NULL, listen_raw, (void *)parm);
 			printf("creating thread for packet capture, status: %d\n", rc);
 		}
-		wait_on_all(fv_ctx);
-		poll_block();
+		//wait_on_all(fv_ctx);
+		//poll_block();
 	}	
 	return 0;
 
