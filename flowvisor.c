@@ -53,7 +53,7 @@
 #include <pcap.h>
 #include "/usr/include/pcap.h" // Sourav:
 #include <pthread.h>
-
+#include <unistd.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -103,11 +103,12 @@ struct ofpbuf *new_feature_request();
 struct ofpbuf *new_flow_mod_flush();
 void new_switch(flowvisor_context *fv_ctx, struct vconn *vconn, const char *name);
 int do_new_switches(flowvisor_context *fv_ctx);
+void* handle_switches(void * parm);
 static int handle_switch(flowvisor_context * fv_ctx, int switchIndex);
 static void handle_switch_unidentified(flowvisor_context * fv_ctx, int switchIndex);
 static int connect_switch_to_guest(flowvisor_context *fv_ctx, int switchIndex, int guestIndex);
 static void handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex);
-static int handle_guest(flowvisor_context *fv_ctx, int guestIndex);
+void * handle_guest(void * parm);
 int wait_on_all(flowvisor_context * fv_ctx);
 void *listen_raw(void * parms);
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet);
@@ -355,11 +356,20 @@ struct ofpbuf *new_flow_mod_flush()
  *      foreach switch, check to see if it's sent something
  *      if yes, send it off to individual switch handlers
  */
-int handle_switches(flowvisor_context *fv_ctx)
+void* handle_switches(void * parm)
 {
-        int i,iteration;
+	
+	struct flowvisor_context *fv_ctx;
+	fv_ctx = (struct flowvisor_context *) parm;
+        int i,iteration, j = 0;
         // FIXME: This new ordering causes all iterations for a switch/guest
         // to be grouped
+	//while (1) {
+	//j ++;
+	//if (j == 50000) {
+	//	printf("DEBUG: handle_switches\n");
+	//	j = 0;
+	//}
         for (i = 0; i < fv_ctx->n_switches;i++ ) {              // foreach switch
                 for (iteration = 0; iteration < fv_ctx->EfficiencyLoops; iteration++) {
                         bool progress = false;
@@ -381,7 +391,8 @@ int handle_switches(flowvisor_context *fv_ctx)
                         }
                 }
         }
-        return 0;
+	//}//while
+        return NULL;
 }
 
 /**************************************************
@@ -405,7 +416,6 @@ handle_switch(flowvisor_context * fv_ctx, int switchIndex)
         else
                 handle_switch_unidentified(fv_ctx, switchIndex);
 
-        // flowvisor_debug("    doing rconn_run()\n");
         rconn_run(sw->rc);              // update anything that needs updating
 
         retval= (!rconn_is_alive(sw->rc) ? EOF          // YUCK! nested ?: stuff...
@@ -520,32 +530,46 @@ void init_guest(struct flowvisor_context *fv_ctx)
  *              given a guest and a policy, see if that guest has
  *              anything to say, and if it should be allowed; send it if allowed, else send error
  */
-static int handle_guest(flowvisor_context *fv_ctx, int guestIndex)
+void* handle_guest(void * parm)
 {
         unsigned int packets_sent;
         struct ofpbuf *msg;
-        int i;
+        int i, j=0;
 	struct ofp_header *oh;
+	
+	struct flowvisor_context *fv_ctx;
+        fv_ctx = (struct flowvisor_context *) parm;
 
-        struct guest * g = &fv_ctx->guests[guestIndex];
+        struct guest * g = &fv_ctx->guests[0];
+	struct rconn * this;
+	struct switch_ *dst_sw;
+	while (1) {
+	j ++ ;
+	if (j == 50000){
+	
+		printf("DEBUG: in handle_guest, g->n_switches %d\n", g->n_switches);
+		j = 0;
+	}
 	for(i=0; i< g->n_switches; i++) // foreach guest controller connection, 1 per switch
         {
-                struct rconn *this= g->guest_switches[i].rc;	
-		struct switch_ * dst_sw = &fv_ctx->switches[i]; 
+		//printf("DEGUB IN handle_guest thread\n");
+                this= g->guest_switches[i].rc;	
+		dst_sw = &fv_ctx->switches[i]; 
 
-		packets_sent = rconn_packets_sent(this);
+		//packets_sent = rconn_packets_sent(this);
 		//flowvisor_log("HANDLE_GUEST, packets_sent: %d\n", packets_sent);
                 msg = rconn_recv(this);
 		if(msg){
 			oh = msg->data;
 			if (oh->type != OFPT_PACKET_OUT && oh->type != OFPT_FLOW_MOD){
 			rconn_send(dst_sw->rc,msg,NULL);
-			//flowvisor_log("HANDLE_GUEST, SEND MSG to SWITCH\n");
+			flowvisor_log("HANDLE_GUEST, SEND MSG to SWITCH\n");
 			}
 			
 		}
 	}
-	return 0;
+	}//while
+	return NULL;
 }
 
 /********************************************************
@@ -584,7 +608,6 @@ void *listen_raw(void* parms){
 	parameters = (struct thread_parm_t *) parms;
 	struct flowvisor_context *fv_cur_ctx = parameters->context;
 	char * interface = parameters->interface;
-	int  count=0;
 	pcap_t *descr = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE], *device=NULL;
 	memset(errbuf,0,PCAP_ERRBUF_SIZE);
@@ -640,8 +663,8 @@ void *listen_raw(void* parms){
 
 void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
 
- 	int i=0;
-	struct timeval cur_time;
+ 	//int i=0;
+	//struct timeval cur_time;
 	struct flowvisor_context *myctx = (struct flowvisor_context *)arg;
 	struct guest *g= &myctx->guests[0]; //there is only one guest
 	
@@ -670,9 +693,9 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
         opi->reason = OFPR_NO_MATCH;
         //opi->data = packet;// the pointer
         memcpy(opi->data, packet, pkt_len);
-        //rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
-	gettimeofday(&cur_time, NULL);
-	printf("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
+        rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
+	//gettimeofday(&cur_time, NULL);
+	//printf("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
 	}
  	/*
 	for (i=0; i<pkthdr->len; i++){
@@ -720,6 +743,8 @@ int main(int argc, char *argv[])
 	*/
 	/* this variable is our reference to the second thread */
 	pthread_t listen_raw_thread;
+	pthread_t handle_switches_thread;
+	pthread_t handle_guest_thread;
 	/*************paramterns*************
 	*/
 	if (argc - optind < 1) {
@@ -778,9 +803,17 @@ int main(int argc, char *argv[])
 	flowvisor_log("accept new switch success\n");
 	do_new_switches(fv_ctx);
 	while (ShouldStop==0){
+		//if (round == 2){
+		  //     	rc = pthread_create(&handle_switches_thread, NULL, handle_switches, (void *)fv_ctx);
+                    //    printf("creating thread for handle_switches, status: %d\n", rc);
+		//}
+		if (round == 3) {
+			rc = pthread_create(&handle_guest_thread, NULL, handle_guest, (void *)fv_ctx);
+                        printf("creating thread for handle_guest, status: %d\n", rc);
+		}
 		handle_switches(fv_ctx);
-		handle_guest(fv_ctx, 0);
-		if(round ++ == 2){
+		//handle_guest(fv_ctx);
+		if(round == 4){
 			parm = malloc(sizeof( struct thread_parm_t));
 			parm->context = fv_ctx;
 			strcpy(parm->interface, "lo");
@@ -789,6 +822,10 @@ int main(int argc, char *argv[])
 		}
 		//wait_on_all(fv_ctx);
 		//poll_block();
+		round ++;
+		//if (round > 10) {
+		//	sleep(10);
+		//}
 	}	
 	return 0;
 
