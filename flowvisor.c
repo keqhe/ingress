@@ -89,6 +89,7 @@ pthread_t x;
 int NeedConfig=0;
 int ShouldStop = 0;
 int newswitch = 0;
+pthread_mutex_t lock;
 /***************************************************
 function delclearations 
 */
@@ -504,7 +505,9 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 	guest_sw = &g->guest_switches[switchIndex];
         msg = rconn_recv(sw->rc);
         if(msg) {               // if we actually got something from the switch
+		pthread_mutex_lock(&lock);
 		rconn_send(guest_sw->rc,ofpbuf_clone(msg),NULL);
+		pthread_mutex_unlock(&lock);
 		//flowvisor_log("SEND MSG to GUEST\n");
 	}
 }
@@ -693,7 +696,9 @@ void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char *
         opi->reason = OFPR_NO_MATCH;
         //opi->data = packet;// the pointer
         memcpy(opi->data, packet, pkt_len);
+	pthread_mutex_lock(&lock);
         rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
+	pthread_mutex_unlock(&lock);
 	//gettimeofday(&cur_time, NULL);
 	//printf("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
 	}
@@ -827,6 +832,7 @@ int main(int argc, char *argv[])
 		//	sleep(10);
 		//}
 	}	
+	pthread_mutex_destroy(&lock);
 	return 0;
 
 }
