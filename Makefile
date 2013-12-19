@@ -81,11 +81,19 @@ distuninstallcheck_listfiles = find . -type f -print
 am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
+<<<<<<< HEAD
 ACLOCAL = ${SHELL} /home/keqiang/myGit/lightflow/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
 AUTOCONF = ${SHELL} /home/keqiang/myGit/lightflow/missing --run autoconf
 AUTOHEADER = ${SHELL} /home/keqiang/myGit/lightflow/missing --run autoheader
 AUTOMAKE = ${SHELL} /home/keqiang/myGit/lightflow/missing --run automake-1.11
+=======
+ACLOCAL = ${SHELL} /home/keqiang/myGit/ingress/missing --run aclocal-1.11
+AMTAR = $${TAR-tar}
+AUTOCONF = ${SHELL} /home/keqiang/myGit/ingress/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/keqiang/myGit/ingress/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/keqiang/myGit/ingress/missing --run automake-1.11
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -112,7 +120,11 @@ LDFLAGS =  -L$(OFSRC)/lib -lm
 LIBOBJS = 
 LIBS = 
 LTLIBOBJS = 
+<<<<<<< HEAD
 MAKEINFO = ${SHELL} /home/keqiang/myGit/lightflow/missing --run makeinfo
+=======
+MAKEINFO = ${SHELL} /home/keqiang/myGit/ingress/missing --run makeinfo
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = flowvisor
@@ -128,10 +140,17 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = 
 VERSION = 0.4
+<<<<<<< HEAD
 abs_builddir = /home/keqiang/myGit/lightflow
 abs_srcdir = /home/keqiang/myGit/lightflow
 abs_top_builddir = /home/keqiang/myGit/lightflow
 abs_top_srcdir = /home/keqiang/myGit/lightflow
+=======
+abs_builddir = /home/keqiang/myGit/ingress
+abs_srcdir = /home/keqiang/myGit/ingress
+abs_top_builddir = /home/keqiang/myGit/ingress
+abs_top_srcdir = /home/keqiang/myGit/ingress
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 ac_ct_CC = gcc
 am__include = include
 am__leading_dot = .
@@ -150,7 +169,11 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
+<<<<<<< HEAD
 install_sh = ${SHELL} /home/keqiang/myGit/lightflow/install-sh
+=======
+install_sh = ${SHELL} /home/keqiang/myGit/ingress/install-sh
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -158,7 +181,11 @@ localstatedir = ${prefix}/var
 mandir = ${datarootdir}/man
 mkdir_p = /bin/mkdir -p
 oldincludedir = /usr/include
+<<<<<<< HEAD
 openflowsrc = /home/keqiang/myGit/lightflow/../openflow
+=======
+openflowsrc = /home/keqiang/myGit/ingress/../openflow
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 pdfdir = ${docdir}
 prefix = /usr/local
 program_transform_name = s,x,x,
@@ -173,7 +200,11 @@ top_builddir = .
 top_srcdir = .
 AUTOMAKE_OPTIONS = -Wall foreign
 #SUBDIRS = policies
+<<<<<<< HEAD
 OFSRC = /home/keqiang/myGit/lightflow/../openflow
+=======
+OFSRC = /home/keqiang/myGit/ingress/../openflow
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 rundir = $(localstatedir)/run
 AM_CFLAGS = -DRUNDIR=\"$(rundir)\" -Wall -Wshadow -D_LARGEFILE_SOURCE  
 AM_LDFLAGS =   

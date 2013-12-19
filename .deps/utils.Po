@@ -58,8 +58,13 @@ utils.o: utils.c /usr/include/assert.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/sys/time.h \
  /usr/include/x86_64-linux-gnu/sys/stat.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
+<<<<<<< HEAD
  /home/keqiang/myGit/lightflow/../openflow/include/openflow/openflow.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/ofpbuf.h config.h utils.h \
+=======
+ /home/keqiang/myGit/ingress/../openflow/include/openflow/openflow.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/ofpbuf.h config.h utils.h \
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
  /usr/include/malloc.h
 
 /usr/include/assert.h:
@@ -226,9 +231,15 @@ utils.o: utils.c /usr/include/assert.h /usr/include/features.h \
 
 /usr/include/x86_64-linux-gnu/bits/stat.h:
 
+<<<<<<< HEAD
 /home/keqiang/myGit/lightflow/../openflow/include/openflow/openflow.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/ofpbuf.h:
+=======
+/home/keqiang/myGit/ingress/../openflow/include/openflow/openflow.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/ofpbuf.h:
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 
 config.h:
 

@@ -39,7 +39,11 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
  /usr/include/xlocale.h /usr/include/x86_64-linux-gnu/bits/string.h \
  /usr/include/x86_64-linux-gnu/bits/string2.h \
  /usr/include/x86_64-linux-gnu/bits/string3.h \
+<<<<<<< HEAD
  /home/keqiang/myGit/lightflow/../openflow/lib/pcap.h /usr/include/pcap.h \
+=======
+ /home/keqiang/myGit/ingress/../openflow/lib/pcap.h /usr/include/pcap.h \
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
  /usr/include/pcap/pcap.h /usr/include/x86_64-linux-gnu/sys/time.h \
  /usr/include/pcap/bpf.h /usr/include/pthread.h /usr/include/sched.h \
  /usr/include/x86_64-linux-gnu/bits/sched.h \
@@ -70,6 +74,7 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/sys/ucontext.h \
  /usr/include/x86_64-linux-gnu/bits/sigthread.h /usr/include/netdb.h \
  /usr/include/rpc/netdb.h /usr/include/x86_64-linux-gnu/bits/netdb.h \
+<<<<<<< HEAD
  /home/keqiang/myGit/lightflow/../openflow/lib/ofpbuf.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/command-line.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/compiler.h \
@@ -93,6 +98,31 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/queue.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/vlog.h \
  /home/keqiang/myGit/lightflow/../openflow/lib/vlog-modules.def
+=======
+ /home/keqiang/myGit/ingress/../openflow/lib/ofpbuf.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/command-line.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/compiler.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/daemon.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdbool.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/fault.h \
+ /home/keqiang/myGit/ingress/../openflow/include/openflow/openflow.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/poll-loop.h \
+ /usr/include/poll.h /usr/include/x86_64-linux-gnu/sys/poll.h \
+ /usr/include/x86_64-linux-gnu/bits/poll.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/util.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/compiler.h utils.h \
+ /usr/include/malloc.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/timeval.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/type-props.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/util.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/vconn-ssl.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/vconn.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/vlog-socket.h flowvisor.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/rconn.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/queue.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/vlog.h \
+ /home/keqiang/myGit/ingress/../openflow/lib/vlog-modules.def
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 
 /usr/include/stdio.h:
 
@@ -204,7 +234,11 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
 
 /usr/include/x86_64-linux-gnu/bits/string3.h:
 
+<<<<<<< HEAD
 /home/keqiang/myGit/lightflow/../openflow/lib/pcap.h:
+=======
+/home/keqiang/myGit/ingress/../openflow/lib/pcap.h:
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 
 /usr/include/pcap.h:
 
@@ -286,6 +320,7 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
 
 /usr/include/x86_64-linux-gnu/bits/netdb.h:
 
+<<<<<<< HEAD
 /home/keqiang/myGit/lightflow/../openflow/lib/ofpbuf.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/command-line.h:
@@ -301,6 +336,23 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
 /home/keqiang/myGit/lightflow/../openflow/include/openflow/openflow.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/poll-loop.h:
+=======
+/home/keqiang/myGit/ingress/../openflow/lib/ofpbuf.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/command-line.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/compiler.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/daemon.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.6/include/stdbool.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/fault.h:
+
+/home/keqiang/myGit/ingress/../openflow/include/openflow/openflow.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/poll-loop.h:
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 
 /usr/include/poll.h:
 
@@ -308,14 +360,21 @@ flowvisor.o: flowvisor.c /usr/include/stdio.h /usr/include/features.h \
 
 /usr/include/x86_64-linux-gnu/bits/poll.h:
 
+<<<<<<< HEAD
 /home/keqiang/myGit/lightflow/../openflow/lib/util.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/compiler.h:
+=======
+/home/keqiang/myGit/ingress/../openflow/lib/util.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/compiler.h:
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
 
 utils.h:
 
 /usr/include/malloc.h:
 
+<<<<<<< HEAD
 /home/keqiang/myGit/lightflow/../openflow/lib/timeval.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/type-props.h:
@@ -337,3 +396,26 @@ flowvisor.h:
 /home/keqiang/myGit/lightflow/../openflow/lib/vlog.h:
 
 /home/keqiang/myGit/lightflow/../openflow/lib/vlog-modules.def:
+=======
+/home/keqiang/myGit/ingress/../openflow/lib/timeval.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/type-props.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/util.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/vconn-ssl.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/vconn.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/vlog-socket.h:
+
+flowvisor.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/rconn.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/queue.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/vlog.h:
+
+/home/keqiang/myGit/ingress/../openflow/lib/vlog-modules.def:
+>>>>>>> b88955cd40eaf7d776defbd6509677b9c1f2951e
