@@ -89,6 +89,15 @@ pthread_t x;
 int NeedConfig=0;
 int ShouldStop = 0;
 int newswitch = 0;
+/********************
+for ingress
+*/
+
+int packet_in_count = 0;
+struct timeval packet_in_array[100000];
+int packet_in_total = 10;
+
+//*************************
 pthread_mutex_t lock;
 /***************************************************
 function delclearations 
@@ -502,12 +511,35 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
         int guest_index = 0; //there is only one guest in our case
 	struct guest * g = &fv_ctx->guests[guest_index];
         struct switch_ *sw = &fv_ctx->switches[switchIndex];
+	struct ofp_header *oh;
+	struct timeval cur_time;
+
+
 	guest_sw = &g->guest_switches[switchIndex];
         msg = rconn_recv(sw->rc);
         if(msg) {               // if we actually got something from the switch
-		pthread_mutex_lock(&lock);
+		//pthread_mutex_lock(&lock);
+		oh = msg->data;
+                if (oh->type == OFPT_PACKET_IN ){
+			gettimeofday(&cur_time, NULL);
+			if (packet_in_count < packet_in_total){
+				packet_in_array[packet_in_count] = cur_time;
+			}
+			packet_in_count ++;
+			printf("%ld, %ld\n", packet_in_count, packet_in_total);
+			if (packet_in_count == packet_in_total) {
+				FILE *f;
+				f = fopen("packet_in_time.txt", "w");
+				int j = 0;
+				for (j = 0; j < packet_in_count; j ++){
+				fprintf(f,"sec: %ld, usec: %ld\n", packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
+				}
+				fclose(f);
+			}
+			//printf("sec: %ld, usec: %ld\n", cur_time.tv_sec, cur_time.tv_usec);			
+		}
 		rconn_send(guest_sw->rc,ofpbuf_clone(msg),NULL);
-		pthread_mutex_unlock(&lock);
+		//pthread_mutex_unlock(&lock);
 		//flowvisor_log("SEND MSG to GUEST\n");
 	}
 }
@@ -603,120 +635,6 @@ int wait_on_all(flowvisor_context * fv_ctx)
 	return 0;
 }
 
-/* listenraw: Opens network interface and calls pcap_loop() */
-
-void *listen_raw(void* parms){
-
-	struct thread_parm_t * parameters;
-	parameters = (struct thread_parm_t *) parms;
-	struct flowvisor_context *fv_cur_ctx = parameters->context;
-	char * interface = parameters->interface;
-	pcap_t *descr = NULL;
-	char errbuf[PCAP_ERRBUF_SIZE], *device=NULL;
-	memset(errbuf,0,PCAP_ERRBUF_SIZE);
- 
-	struct bpf_program fp; //the complied filter
-	char filter_exp[] = "udp";//filter expression
-	bpf_u_int32 mask; //Our net mask
-	bpf_u_int32 net; //our IP
-
-	device = interface;
-
-	if (pcap_lookupnet(device, &net, &mask, errbuf) == -1) {
-		 fprintf(stderr, "Can't get netmask for device %s\n", device);
-		 net = 0;
-		 mask = 0;
-	}
-	/*
-	if ( (device = pcap_lookupdev(errbuf)) == NULL){
-        	fprintf(stderr, "ERROR: %s\n", errbuf);
-        	exit(1);
-	}
- 	*/
-	flowvisor_log("Opening device %s\n", device);
-	//Open device in promiscuous mode
-        if ( (descr = pcap_open_live(device, MAXBYTES2CAPTURE, 1,  512, errbuf)) == NULL){
-                fprintf(stderr, "ERROR: %s\n", errbuf);
-                exit(1);
-        }
-
-	// Compile and apply the filter
-	if (pcap_compile(descr, &fp, filter_exp, 0, net) == -1) {
-		fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(descr));
-		exit(1);
-	}
-	if (pcap_setfilter(descr, &fp) == -1) {
-		fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(descr));
-		exit(1);
- 	}
-
-	//Loop forever & call processPacket() for every received packet
-	if ( pcap_loop(descr, -1, processPacket, (u_char *)fv_cur_ctx) == -1){
-		fprintf(stderr, "ERROR: %s\n", pcap_geterr(descr) );
-		exit(1);
-	}
-	return NULL;
-}
-
-
-/* processPacket(): Callback function called by pcap_loop() everytime a packet */
-/* arrives to the network card. This function prints the captured raw data in  */
-/* hexadecimal.                                                                */
-
-
-void processPacket(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char * packet){
-
- 	//int i=0;
-	//struct timeval cur_time;
-	struct flowvisor_context *myctx = (struct flowvisor_context *)arg;
-	struct guest *g= &myctx->guests[0]; //there is only one guest
-	
-	//printf("Packet Count: %d\n", ++(*counter));
-	//flowvisor_log("processPacket, Received Packet Size: %d\n", pkthdr->len);
-	//printf("Payload:\n");
-
-	if (pkthdr->len <=128)	{	
-	/*try to generate packet_in message to guest
-	*/
-	unsigned int pkt_len = pkthdr->len;
-	struct ofpbuf *buf;
-        struct ofp_packet_in *opi;
-        unsigned int len = offsetof(struct ofp_packet_in, data) + pkt_len;
-
-        buf = ofpbuf_new(len);
-        ofpbuf_put_zeros(buf, len);
-        opi = (struct ofp_packet_in *)buf->data;
-        opi->header.version = OFP_VERSION;
-        opi->header.type = OFPT_PACKET_IN;
-        opi->header.length = htons(len);
-        opi->header.xid = 0xcafebeef;
-        opi->buffer_id = -1; //not buffered in switch
-        opi->total_len = htons(pkt_len); // ether frame length
-        opi->in_port = htons(OFPP_NONE); //FIXME: assume that it is from port None
-        opi->reason = OFPR_NO_MATCH;
-        //opi->data = packet;// the pointer
-        memcpy(opi->data, packet, pkt_len);
-	pthread_mutex_lock(&lock);
-        rconn_send(g->guest_switches[0].rc, buf, NULL);	//there is only in switch and on eguest
-	pthread_mutex_unlock(&lock);
-	//gettimeofday(&cur_time, NULL);
-	//printf("Sent Packet_In Message (Raw) to GUEST: %ld.%ld\n", cur_time.tv_sec, cur_time.tv_usec);
-	}
- 	/*
-	for (i=0; i<pkthdr->len; i++){
-
-   		if ( isprint(packet[i]) ) // If it is a printable character, print it
-        	printf("%c ", packet[i]);
-    		else
-        	printf(". ");
-
-     		if( (i%16 == 0 && i!=0) || i==pkthdr->len-1 )
-        		printf("\n");
-  	}
-	*/
- 	return;
-}
-
 
 /**************************************************************************
 *****main
@@ -808,31 +726,11 @@ int main(int argc, char *argv[])
 	flowvisor_log("accept new switch success\n");
 	do_new_switches(fv_ctx);
 	while (ShouldStop==0){
-		//if (round == 2){
-		  //     	rc = pthread_create(&handle_switches_thread, NULL, handle_switches, (void *)fv_ctx);
-                    //    printf("creating thread for handle_switches, status: %d\n", rc);
-		//}
-		//if (round == 3) {
-		//	rc = pthread_create(&handle_guest_thread, NULL, handle_guest, (void *)fv_ctx);
-                //        printf("creating thread for handle_guest, status: %d\n", rc);
-		//}
 		handle_switches(fv_ctx);
 		handle_guest(fv_ctx);
-		if(round == 4){
-			parm = malloc(sizeof( struct thread_parm_t));
-			parm->context = fv_ctx;
-			strcpy(parm->interface, "lo");
-			rc = pthread_create(&listen_raw_thread, NULL, listen_raw, (void *)parm);
-			printf("creating thread for packet capture, status: %d\n", rc);
-		}
 		wait_on_all(fv_ctx);
 		poll_block();
-		round ++;
-		//if (round > 10) {
-		//	sleep(10);
-		//}
 	}	
-	pthread_mutex_destroy(&lock);
 	return 0;
 
 }
