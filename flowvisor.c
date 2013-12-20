@@ -95,6 +95,11 @@ for ingress
 
 int packet_in_count = 0;
 struct timeval packet_in_array[100000];
+struct timeval packet_out_array[100000];
+struct timeval flow_mod_array[100000];
+unsigned int src_array[100000];
+unsigned int dst_array[100000];
+
 int packet_in_total = 10;
 
 //*************************
@@ -361,6 +366,102 @@ struct ofpbuf *new_flow_mod_flush()
 
         return buf;
 }
+
+void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsigned int *src, unsigned int *dst)
+{
+	// get the switch info
+	struct switch_ *sw = &fv_ctx->switches[0];
+	
+	// Get the openflow packet_in msg and the packet inside it
+        struct ofp_packet_in *packet_in = msg->data;
+  	u_char *packet = packet_in->data;
+
+	// Declarations
+        struct ofpbuf *buf;
+        struct ofp_flow_mod *fm;
+
+        struct ofp_action_output *action_output = NULL;
+	unsigned int sip,dip; 
+	unsigned int len = sizeof(struct ofp_flow_mod) + sizeof(struct ofp_action_output);
+
+	// get ip src dst from packet
+	memcpy((u_char*)&sip,packet+26,4);
+        memcpy((u_char*)&dip,packet+30,4);
+
+	// Create Flowmod msg
+        buf = ofpbuf_new(len);
+        ofpbuf_put_zeros(buf, len);
+        fm = (struct ofp_flow_mod *)buf->data;
+
+	// Assign the of header
+        fm->header.version = OFP_VERSION;
+        fm->header.type = OFPT_FLOW_MOD;
+        fm->header.length = htons(len);
+        fm->header.xid = 0xcafebeef;
+
+	// Populate the flowmod params
+        fm->command = htons(OFPFC_ADD);      
+	fm->idle_timeout = htons(20);
+	fm->hard_timeout = htons(0);
+ 	fm->priority = htons(50);
+	fm->buffer_id = htonl(-1);
+        fm->out_port = htons(OFPP_NONE);
+        
+	// Populate the match fields
+        fm->match.in_port = htons(1);
+ 	fm->match.nw_src = htonl(sip); *src = sip;
+	fm->match.nw_dst = htonl(dip); *dst = dip;
+        fm->match.wildcards = OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_DL_TYPE|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS;
+        fm->command = htons(OFPFC_ADD);
+	
+	// Populate the action
+	action_output = (struct ofp_action_output *)fm->actions;
+	action_output->type = htons(OFPAT_OUTPUT);
+        action_output->port = htons(2);
+	action_output->max_len = htons(0);
+	
+	// Send
+	rconn_send(sw->rc,buf,NULL);
+}
+
+void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
+{
+	// Get the switch info
+        struct switch_ *sw = &fv_ctx->switches[0];
+	
+	// Declarations
+        struct ofp_action_output *action_output = NULL;
+        struct ofpbuf *buf;
+        struct ofp_packet_out *opo;
+	
+	// Get the packet_in msg	
+        struct ofp_packet_in *packet_in = msg->data;
+
+ 	unsigned int len = sizeof(struct ofp_packet_out)+sizeof(struct ofp_action_output)+packet_in->total_len;
+
+	// Create the packet_out
+	buf = ofpbuf_new(len);
+        ofpbuf_put_zeros(buf,len);
+        opo = (struct ofp_packet_out *)buf->data;
+	// Create of headers
+	opo->header.version = OFP_VERSION;
+	opo->header.type = OFPT_PACKET_OUT;
+	opo->header.length = htons(len);
+	opo->header.xid = 0xcafebeef;
+	opo->buffer_id = htons(-1);
+	opo->in_port = htons(1);
+
+        action_output = (struct ofp_action_output *)opo->actions;
+        action_output->type = htons(OFPAT_OUTPUT);
+        action_output->port = htons(2);
+        action_output->max_len = htons(0);
+
+	memcpy(opo + sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output),packet_in->data,packet_in->total_len);
+	
+        rconn_send(sw->rc,buf,NULL);
+
+}
+
 /*****************************************
  * handle_switches(flowvisor_context *fv_ctx)
  *      foreach switch, check to see if it's sent something
@@ -513,7 +614,12 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
         struct switch_ *sw = &fv_ctx->switches[switchIndex];
 	struct ofp_header *oh;
 	struct timeval cur_time;
-
+	unsigned int src,dst;
+	union ip{
+	int x;
+	char a[4];
+	};
+	union ip sip,dip;
 
 	guest_sw = &g->guest_switches[switchIndex];
         msg = rconn_recv(sw->rc);
@@ -527,14 +633,41 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 			}
 			packet_in_count ++;
 			printf("%ld, %ld\n", packet_in_count, packet_in_total);
+
+			// Generate Flowmod
+			new_flow_mod_add(fv_ctx,msg,&src,&dst);
+                        if (packet_in_count < packet_in_total){
+                                packet_in_array[packet_in_count] = cur_time;
+				src_array[packet_in_count] = src;
+				dst_array[packet_in_count] = dst;
+                        }
+              		// Generate packet out
+			new_packet_out(fv_ctx,msg);
+                        if (packet_in_count < packet_in_total){
+                                  packet_in_array[packet_in_count] = cur_time;
+                        }
+                   
 			if (packet_in_count == packet_in_total) {
-				FILE *f;
-				f = fopen("packet_in_time.txt", "w");
+				FILE *fin,*fout,*fmod;
+				fin = fopen("packet_in_time.txt", "w");
+                                fout = fopen("packet_out_time.txt", "w");
+                                fmod = fopen("packet_mod_time.txt", "w");
 				int j = 0;
+				
 				for (j = 0; j < packet_in_count; j ++){
-				fprintf(f,"sec: %ld, usec: %ld\n", packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
-				}
-				fclose(f);
+				sip.x = src_array[j];
+				dip.x = dst_array[j];
+				fprintf(fin,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
+                                fprintf(fout,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
+                                fprintf(fmod,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
+				
+
+
+}
+
+				fclose(fin);
+				fclose(fout);
+				fclose(fmod);
 			}
 			//printf("sec: %ld, usec: %ld\n", cur_time.tv_sec, cur_time.tv_usec);			
 		}
