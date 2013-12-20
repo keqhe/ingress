@@ -9,7 +9,7 @@ ps aux | grep -ie tcpdump | awk '{print $2}' | xargs kill -9
 ps aux | grep -ie hping | awk '{print $2}' | xargs kill -9
 
 #start the controller, running in the background
-../openflow/controller/controller ptcp:6634 &
+../openflow/controller/controller ptcp:6632 &
 
 #start the flowvisor, make sure that the flowvisor connects to the controller successfully
 ./flowvisor ptcp:6633 &
@@ -41,4 +41,5 @@ ps aux | grep -ie hping | awk '{print $2}' | xargs kill -9
 #process the recorded file and get the delay caculation
 export PATH=/usr/local/bro/bin/:$PATH
 python bro_traces.py
+python parse_control.py
 

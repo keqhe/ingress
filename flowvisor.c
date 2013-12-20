@@ -710,9 +710,9 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 				for (j = 0; j < packet_in_count; j ++){
 				sip.x = src_array[j];
 				dip.x = dst_array[j];
-				fprintf(fin,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
-                                fprintf(fout,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
-                                fprintf(fmod,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
+				fprintf(fin,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
+                                fprintf(fout,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
+                                fprintf(fmod,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
 				
 
 
