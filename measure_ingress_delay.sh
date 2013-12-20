@@ -21,7 +21,7 @@ sleep  30
 tcpdump -w in.pcap -i eth2 &  #where the trace is injected
 ip netns exec net3  tcpdump -w out.pcap -i eth3 & #where the trace is out from the switch
 
-sleep 120 && pkill -HUP -f tcpdump #terminate the tcpdump, note the parameter 60sec, that means we need to make sure the experiment can be finised in 60 seconds
+#sleep 120 && pkill -HUP -f tcpdump  & #terminate the tcpdump, note the parameter 60sec, that means we need to make sure the experiment can be finised in 60 seconds
 
 #sleep for sometime so the tcpdump is initlized successfully
 sleep 5
@@ -35,11 +35,12 @@ sleep 10
 # close the measurement session
 ps aux | grep -ie flowvisor | awk '{print $2}' | xargs kill -9
 ps aux | grep -ie controller | awk '{print $2}' | xargs kill -9
-ps aux | grep -ie tcpdump | awk '{print $2}' | xargs kill -9
+#ps aux | grep -ie tcpdump | awk '{print $2}' | xargs kill -9
+pkill -HUP -f tcpdump
 ps aux | grep -ie hping | awk '{print $2}' | xargs kill -9
 
 #process the recorded file and get the delay caculation
 export PATH=/usr/local/bro/bin/:$PATH
-python bro_traces.py
+python bro_trace.py
 python parse_control.py
 

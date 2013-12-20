@@ -100,7 +100,7 @@ struct timeval flow_mod_array[100000];
 unsigned int src_array[100000];
 unsigned int dst_array[100000];
 
-int packet_in_total = 2;
+int packet_in_total = 1000;
 
 //*************************
 pthread_mutex_t lock;
@@ -413,7 +413,7 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 
 	// Populate the flowmod params
         fm->command = htons(OFPFC_ADD);      
-	fm->idle_timeout = htons(20);
+	fm->idle_timeout = htons(60);
 	fm->hard_timeout = htons(0);
  	fm->priority = htons(50);
 	fm->buffer_id = packet_in->buffer_id;
@@ -710,9 +710,9 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 				for (j = 0; j < packet_in_count; j ++){
 				sip.x = src_array[j];
 				dip.x = dst_array[j];
-				fprintf(fin,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
-                                fprintf(fout,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
-                                fprintf(fmod,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld.%ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
+				fprintf(fin,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
+                                fprintf(fout,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
+                                fprintf(fmod,"src:%d.%d.%d.%d dst:%d.%d.%d.%d %ld %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
 				
 
 

@@ -13,7 +13,7 @@ for i in xrange(tries):
 	#for j in xrange(6000, 6015):
 	#stat, output = commands.getstatusoutput('sudo  -S hping3 -I eth3 --udp -F  -i u1 -s 10 '  + ' 192.168.56.100 -c 1')
 	#print output
-	stat, output = commands.getstatusoutput('sudo  -S hping3 -I eth2 --udp -F  -i u20000 --rand-source  '  + ' 192.168.10.100 -c 50')
+	stat, output = commands.getstatusoutput('sudo  -S hping3 -I eth2 --udp -F  -i u5000 --rand-source  '  + ' 192.168.10.100 -c 1000')
 	#stat, output = commands.getstatusoutput('sudo  -S hping3 -I eth2 --udp  -i u50000.0  -s 0  192.168.56.10 -c 50')
 	#time.sleep(10)
 	print output
