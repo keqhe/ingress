@@ -370,6 +370,7 @@ struct ofpbuf *new_flow_mod_flush()
 void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsigned int *src, unsigned int *dst)
 {
 	// get the switch info
+	printf("[debug]: Inside new_flow_mod_add\n");
 	struct switch_ *sw = &fv_ctx->switches[0];
 	
 	// Get the openflow packet_in msg and the packet inside it
@@ -384,9 +385,21 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	unsigned int sip,dip; 
 	unsigned int len = sizeof(struct ofp_flow_mod) + sizeof(struct ofp_action_output);
 
+	char s[10];
+	memset(s,'\0',10);
+	memcpy(s,"10.0.0.1",8);
+	sip = inet_addr(s);
+        printf("[Debug]: sip: %s %d\n",s,sip);
+
+        memset(s,'\0',10);
+        memcpy(s,"10.0.0.2",8);
+        dip = inet_addr(s);
+
+        printf("[Debug]: dip: %s %d\n",s,dip);
+
 	// get ip src dst from packet
-	memcpy((u_char*)&sip,packet+26,4);
-        memcpy((u_char*)&dip,packet+30,4);
+	//memcpy((u_char*)&sip,packet+26,4);
+        //memcpy((u_char*)&dip,packet+30,4);
 
 	// Create Flowmod msg
         buf = ofpbuf_new(len);
@@ -396,6 +409,7 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	// Assign the of header
         fm->header.version = OFP_VERSION;
         fm->header.type = OFPT_FLOW_MOD;
+	printf("[Debug]: Length %d\n",len);
         fm->header.length = htons(len);
         fm->header.xid = 0xcafebeef;
 
@@ -404,19 +418,20 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	fm->idle_timeout = htons(20);
 	fm->hard_timeout = htons(0);
  	fm->priority = htons(50);
-	fm->buffer_id = htonl(-1);
+	fm->buffer_id = packet_in->buffer_id;
         fm->out_port = htons(OFPP_NONE);
         
 	// Populate the match fields
         fm->match.in_port = htons(1);
  	fm->match.nw_src = htonl(sip); *src = sip;
 	fm->match.nw_dst = htonl(dip); *dst = dip;
-        fm->match.wildcards = OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_DL_TYPE|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS;
-        fm->command = htons(OFPFC_ADD);
-	
+	printf ("[debug]: Src %d Dst %d\n",sip,dip);
+        fm->match.wildcards = 0;// OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_DL_TYPE|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS;
+        	
 	// Populate the action
 	action_output = (struct ofp_action_output *)fm->actions;
 	action_output->type = htons(OFPAT_OUTPUT);
+	action_output->len = htons(8);
         action_output->port = htons(2);
 	action_output->max_len = htons(0);
 	
@@ -426,6 +441,8 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 
 void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 {
+        printf("[debug]: Inside new_packet_out\n");
+
 	// Get the switch info
         struct switch_ *sw = &fv_ctx->switches[0];
 	
@@ -440,7 +457,11 @@ void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
  	unsigned int len = sizeof(struct ofp_packet_out)+sizeof(struct ofp_action_output)+packet_in->total_len;
 
 	// Create the packet_out
+       printf("[debug]: Calling new buf\n");
+
 	buf = ofpbuf_new(len);
+       printf("[debug]: new buff successful\n");
+
         ofpbuf_put_zeros(buf,len);
         opo = (struct ofp_packet_out *)buf->data;
 	// Create of headers
@@ -448,17 +469,19 @@ void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 	opo->header.type = OFPT_PACKET_OUT;
 	opo->header.length = htons(len);
 	opo->header.xid = 0xcafebeef;
-	opo->buffer_id = htons(-1);
+	opo->buffer_id = htons(packet_in->buffer_id);
 	opo->in_port = htons(1);
-
+	printf("[debug]: Bufferid: %d\n",ntohs(packet_in->buffer_id));
         action_output = (struct ofp_action_output *)opo->actions;
         action_output->type = htons(OFPAT_OUTPUT);
         action_output->port = htons(2);
         action_output->max_len = htons(0);
+        printf("[debug]: Calling memcpy\n");
 
-	memcpy(opo + sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output),packet_in->data,packet_in->total_len);
-	
-        rconn_send(sw->rc,buf,NULL);
+//	memcpy(opo + sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output),packet_in->data,packet_in->total_len);
+       printf("[debug]: memcpy successful\n");
+
+       rconn_send(sw->rc,buf,NULL);
 
 }
 
@@ -627,6 +650,8 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 		//pthread_mutex_lock(&lock);
 		oh = msg->data;
                 if (oh->type == OFPT_PACKET_IN ){
+		        printf("[debug]: Packet in recieved\n");
+
 			gettimeofday(&cur_time, NULL);
 			if (packet_in_count < packet_in_total){
 				packet_in_array[packet_in_count] = cur_time;
@@ -635,18 +660,18 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 			printf("%ld, %ld\n", packet_in_count, packet_in_total);
 
 			// Generate Flowmod
-			new_flow_mod_add(fv_ctx,msg,&src,&dst);
+		        new_flow_mod_add(fv_ctx,msg,&src,&dst);
                         if (packet_in_count < packet_in_total){
-                                packet_in_array[packet_in_count] = cur_time;
+                                flow_mod_array[packet_in_count] = cur_time;
 				src_array[packet_in_count] = src;
 				dst_array[packet_in_count] = dst;
                         }
               		// Generate packet out
 			new_packet_out(fv_ctx,msg);
                         if (packet_in_count < packet_in_total){
-                                  packet_in_array[packet_in_count] = cur_time;
+                                  packet_out_array[packet_in_count] = cur_time;
                         }
-                   
+                    	printf("[Debug] I am here \n");
 			if (packet_in_count == packet_in_total) {
 				FILE *fin,*fout,*fmod;
 				fin = fopen("packet_in_time.txt", "w");
@@ -669,7 +694,9 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 				fclose(fout);
 				fclose(fmod);
 			}
-			//printf("sec: %ld, usec: %ld\n", cur_time.tv_sec, cur_time.tv_usec);			
+			//printf("sec: %ld, usec: %ld\n", cur_time.tv_sec, cur_time.tv_usec);
+			printf("[debug]:Returning\n");
+			return;			
 		}
 		rconn_send(guest_sw->rc,ofpbuf_clone(msg),NULL);
 		//pthread_mutex_unlock(&lock);
