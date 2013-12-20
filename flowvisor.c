@@ -367,10 +367,10 @@ struct ofpbuf *new_flow_mod_flush()
         return buf;
 }
 
-void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsigned int *src, unsigned int *dst)
+void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsigned int *src, unsigned int *dst, bool *ispacketout)
 {
 	// get the switch info
-	printf("[debug]: Inside new_flow_mod_add\n");
+	//printf("[debug]: Inside new_flow_mod_add\n");
 	struct switch_ *sw = &fv_ctx->switches[0];
 	
 	// Get the openflow packet_in msg and the packet inside it
@@ -380,15 +380,25 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	// Declarations
         struct ofpbuf *buf;
         struct ofp_flow_mod *fm;
-
+	//struct in_addr srcip,dstip;
         struct ofp_action_output *action_output = NULL;
 	unsigned int sip,dip; 
 	unsigned int len = sizeof(struct ofp_flow_mod) + sizeof(struct ofp_action_output);
-
+	int i = 0;
+	/*printf("[debug]: packet length %d \n",ntohs(packet_in->total_len));
+	for (i=0;i<ntohs(packet_in->total_len);i++)
+	{
+             printf ("%d : %d ", i,*(packet+i));
+	}*/
 	// get ip src dst from packet
-	//imemcpy((u_char*)&sip,packet+26,4);
-        //memcpy((u_char*)&dip,packet+30,4);
-
+	memcpy((u_char*)&sip,packet+26,4);
+        memcpy((u_char*)&dip,packet+30,4);
+	/*bzero(&srcip,sizeof(struct in_addr));
+	bzero(&dstip,sizeof(struct in_addr));
+	srcip.s_addr = sip;
+	dstip.s_addr = dip;
+	printf ("[Debug] Complete:  Dst: %d -> %s Src %d ->%s \n",dip,inet_ntoa(dstip),sip,inet_ntoa(srcip));
+	*/
 	// Create Flowmod msg
         buf = ofpbuf_new(len);
         ofpbuf_put_zeros(buf, len);
@@ -397,7 +407,7 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	// Assign the of header
         fm->header.version = OFP_VERSION;
         fm->header.type = OFPT_FLOW_MOD;
-	printf("[Debug]: Length %d\n",len);
+	//printf("[Debug]: Length %d\n",len);
         fm->header.length = htons(len);
         //fm->header.xid = 0xcafebeef;
 
@@ -407,20 +417,25 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	fm->hard_timeout = htons(0);
  	fm->priority = htons(50);
 	fm->buffer_id = packet_in->buffer_id;
-        printf("[debug]: bufferid: %d\n",ntohl(fm->buffer_id));
-	printf("[debug]: inport = %d\n",ntohl(packet_in->in_port));
-	//fm->out_port = htons(OFPP_NONE);
-        if(ntohl(packet_in->in_port) == 65536)
+        //printf("[debug]: bufferid: %d\n",ntohl(fm->buffer_id));
+	if (ntohl(fm->buffer_id) == -1)
 	{
+	   *ispacketout = true;
+	}
+	//printf("[debug]: inport = %d\n",ntohl(packet_in->in_port));
+	//fm->out_port = htons(OFPP_NONE);
+        
 	// Populate the match fields
         fm->match.in_port = htons(1);
  	//fm->match.nw_src = htonl(sip); 
 	//fm->match.nw_dst = htonl(dip); 
-	*src = fm->match.nw_src = (inet_addr("10.0.0.1"));
-	*dst = fm->match.nw_dst = (inet_addr("10.0.0.2"));
+	fm->match.nw_src = (sip);
+	fm->match.nw_dst = (dip);
+	*src = (sip);
+	*dst = (dip);
 	fm->match.dl_type = htons(0x0800);
-	printf ("[debug]: Src %d Dst %d\n",*src,*dst);
-        fm->match.wildcards = htonl( OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS);
+	//printf ("[debug]: Src %d Dst %d\n",*src,*dst);
+        fm->match.wildcards = htonl( OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS );//|OFPFW_NW_SRC_ALL);
         	
 	// Populate the action
 	action_output = (struct ofp_action_output *)fm->actions;
@@ -428,36 +443,13 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	action_output->len = htons(8);
         action_output->port = htons(2);
 	action_output->max_len = htons(0);
-	}
-
-        else
-        {       
-        // Populate the match fields
-        fm->match.in_port = htons(2);
-        //fm->match.nw_src = htonl(sip); 
-        //fm->match.nw_dst = htonl(dip); 
-        *src = fm->match.nw_src = (inet_addr("10.0.0.2"));
-        *dst = fm->match.nw_dst = (inet_addr("10.0.0.1"));
-        fm->match.dl_type = htons(0x0800);
-        printf ("[debug]: Src %d Dst %d\n",*src,*dst);
-        fm->match.wildcards = htonl( OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS);
-
-        // Populate the action
-        action_output = (struct ofp_action_output *)fm->actions;
-        action_output->type = htons(OFPAT_OUTPUT);
-        action_output->len = htons(8);
-        action_output->port = htons(1);
-        action_output->max_len = htons(0);
-        }
-
-
-	// Send
+	// Send the flow mod
 	rconn_send(sw->rc,buf,NULL);
 }
 
 void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 {
-        printf("[debug]: Inside new_packet_out\n");
+  	//printf("[debug]: Inside new_packet_out\n");
 
 	// Get the switch info
         struct switch_ *sw = &fv_ctx->switches[0];
@@ -469,14 +461,15 @@ void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 	
 	// Get the packet_in msg	
         struct ofp_packet_in *packet_in = msg->data;
-
- 	unsigned int len = sizeof(struct ofp_packet_out)+sizeof(struct ofp_action_output)+packet_in->total_len;
-
+        u_char *packet = packet_in->data;
+	u_char *offset;
+ 	unsigned int len = sizeof(struct ofp_packet_out)+sizeof(struct ofp_action_output)+ntohs(packet_in->total_len);
+	int i;
 	// Create the packet_out
-       printf("[debug]: Calling new buf\n");
+        //printf("[debug]: Calling new buf\n");
 
 	buf = ofpbuf_new(len);
-       printf("[debug]: new buff successful\n");
+        //printf("[debug]: new buff successful\n");
 
         ofpbuf_put_zeros(buf,len);
         opo = (struct ofp_packet_out *)buf->data;
@@ -484,20 +477,33 @@ void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 	opo->header.version = OFP_VERSION;
 	opo->header.type = OFPT_PACKET_OUT;
 	opo->header.length = htons(len);
-	opo->header.xid = 0xcafebeef;
-	opo->buffer_id = htons(-1);
-	opo->in_port = htons(1);
-	printf("[debug]: Bufferid: %d\n",ntohs(packet_in->buffer_id));
+	//opo->header.xid = 0xcafebeef;
+	opo->buffer_id = htonl(-1);
+	opo->in_port = htons(OFPP_NONE);
+	opo->actions_len = htons(sizeof(struct ofp_action_output));
+	//printf("[debug]: Bufferid: %d\n",ntohs(packet_in->buffer_id));
         action_output = (struct ofp_action_output *)opo->actions;
         action_output->type = htons(OFPAT_OUTPUT);
-        action_output->port = htons(2);
-        action_output->max_len = htons(0);
-        printf("[debug]: Calling memcpy\n");
+        action_output->len = htons(8);
+	action_output->port = htons(2);
+        action_output->max_len = htons(2000);
+        //printf("[debug]: Calling memcpy\n");
+	offset = (u_char*)opo+ sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output);
+        memcpy(offset,packet,ntohs(packet_in->total_len));
+	/*printf("[Debug]: packet \n");
+        for (i=0;i<ntohs(packet_in->total_len);i++)
+        {
+             printf (" %d ", *(packet+i));
+        }
 
-//	memcpy(opo + sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output),packet_in->data,packet_in->total_len);
-       printf("[debug]: memcpy successful\n");
-
-       rconn_send(sw->rc,buf,NULL);
+	printf("\n[debug]: Packet out\n");
+        for (i=0;i<ntohs(packet_in->total_len);i++)
+        {
+		printf("%d ",*(offset+i));
+	}
+	printf("\n");
+	*/
+       	rconn_send(sw->rc,buf,NULL);
 
 }
 
@@ -655,10 +661,11 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 	struct timeval cur_time;
 	unsigned int src,dst;
 	union ip{
-	int x;
-	char a[4];
+	unsigned int x;
+	u_char a[4];
 	};
 	union ip sip,dip;
+	bool sendpacketout = false;
 
 	guest_sw = &g->guest_switches[switchIndex];
         msg = rconn_recv(sw->rc);
@@ -666,28 +673,33 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 		//pthread_mutex_lock(&lock);
 		oh = msg->data;
                 if (oh->type == OFPT_PACKET_IN ){
-		        printf("[debug]: Packet in recieved\n");
+		        //printf("[debug]: Packet in recieved\n");
 
 			gettimeofday(&cur_time, NULL);
 			if (packet_in_count < packet_in_total){
 				packet_in_array[packet_in_count] = cur_time;
 			}
 			
-			printf("%ld, %ld\n", packet_in_count, packet_in_total);
+			//printf("%ld, %ld\n", packet_in_count, packet_in_total);
 
 			// Generate Flowmod
-		        new_flow_mod_add(fv_ctx,msg,&src,&dst);
+		        new_flow_mod_add(fv_ctx,msg,&src,&dst,&sendpacketout);
                         if (packet_in_count < packet_in_total){
                                 flow_mod_array[packet_in_count] = cur_time;
 				src_array[packet_in_count] = src;
 				dst_array[packet_in_count] = dst;
                         }
               		// Generate packet out
-		//new_packet_out(fv_ctx,msg);
+		        if (sendpacketout)
+			{
+				//printf ("[Debug]: Send Packet out \n");
+				new_packet_out(fv_ctx,msg);
 		
-                        if (packet_in_count < packet_in_total){
-                                  packet_out_array[packet_in_count] = cur_time;
-                        }
+                	        if (packet_in_count < packet_in_total){
+        	                          packet_out_array[packet_in_count] = cur_time;
+                        	}
+			
+			}
                     	packet_in_count++;
 			if (packet_in_count == packet_in_total) {
 				FILE *fin,*fout,*fmod;
@@ -723,7 +735,7 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 void init_guest(struct flowvisor_context *fv_ctx)
 {
 	struct guest g;
-	const char* name = "tcp:127.0.0.1";
+	const char* name = "tcp:127.0.0.1:6632";
 	fv_ctx->n_guests = 0;
 	fv_ctx->n_switches = 0;
 	fv_ctx->n_listeners = 0;
