@@ -100,7 +100,7 @@ struct timeval flow_mod_array[100000];
 unsigned int src_array[100000];
 unsigned int dst_array[100000];
 
-int packet_in_total = 10;
+int packet_in_total = 2;
 
 //*************************
 pthread_mutex_t lock;
@@ -385,20 +385,8 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	unsigned int sip,dip; 
 	unsigned int len = sizeof(struct ofp_flow_mod) + sizeof(struct ofp_action_output);
 
-	char s[10];
-	memset(s,'\0',10);
-	memcpy(s,"10.0.0.1",8);
-	sip = inet_addr(s);
-        printf("[Debug]: sip: %s %d\n",s,sip);
-
-        memset(s,'\0',10);
-        memcpy(s,"10.0.0.2",8);
-        dip = inet_addr(s);
-
-        printf("[Debug]: dip: %s %d\n",s,dip);
-
 	// get ip src dst from packet
-	//memcpy((u_char*)&sip,packet+26,4);
+	//imemcpy((u_char*)&sip,packet+26,4);
         //memcpy((u_char*)&dip,packet+30,4);
 
 	// Create Flowmod msg
@@ -411,7 +399,7 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
         fm->header.type = OFPT_FLOW_MOD;
 	printf("[Debug]: Length %d\n",len);
         fm->header.length = htons(len);
-        fm->header.xid = 0xcafebeef;
+        //fm->header.xid = 0xcafebeef;
 
 	// Populate the flowmod params
         fm->command = htons(OFPFC_ADD);      
@@ -419,14 +407,20 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	fm->hard_timeout = htons(0);
  	fm->priority = htons(50);
 	fm->buffer_id = packet_in->buffer_id;
-        fm->out_port = htons(OFPP_NONE);
-        
+        printf("[debug]: bufferid: %d\n",ntohl(fm->buffer_id));
+	printf("[debug]: inport = %d\n",ntohl(packet_in->in_port));
+	//fm->out_port = htons(OFPP_NONE);
+        if(ntohl(packet_in->in_port) == 65536)
+	{
 	// Populate the match fields
         fm->match.in_port = htons(1);
- 	fm->match.nw_src = htonl(sip); *src = sip;
-	fm->match.nw_dst = htonl(dip); *dst = dip;
-	printf ("[debug]: Src %d Dst %d\n",sip,dip);
-        fm->match.wildcards = 0;// OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_DL_TYPE|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS;
+ 	//fm->match.nw_src = htonl(sip); 
+	//fm->match.nw_dst = htonl(dip); 
+	*src = fm->match.nw_src = (inet_addr("10.0.0.1"));
+	*dst = fm->match.nw_dst = (inet_addr("10.0.0.2"));
+	fm->match.dl_type = htons(0x0800);
+	printf ("[debug]: Src %d Dst %d\n",*src,*dst);
+        fm->match.wildcards = htonl( OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS);
         	
 	// Populate the action
 	action_output = (struct ofp_action_output *)fm->actions;
@@ -434,7 +428,29 @@ void new_flow_mod_add(struct flowvisor_context *fv_ctx, struct ofpbuf *msg,unsig
 	action_output->len = htons(8);
         action_output->port = htons(2);
 	action_output->max_len = htons(0);
-	
+	}
+
+        else
+        {       
+        // Populate the match fields
+        fm->match.in_port = htons(2);
+        //fm->match.nw_src = htonl(sip); 
+        //fm->match.nw_dst = htonl(dip); 
+        *src = fm->match.nw_src = (inet_addr("10.0.0.2"));
+        *dst = fm->match.nw_dst = (inet_addr("10.0.0.1"));
+        fm->match.dl_type = htons(0x0800);
+        printf ("[debug]: Src %d Dst %d\n",*src,*dst);
+        fm->match.wildcards = htonl( OFPFW_DL_VLAN|OFPFW_DL_SRC|OFPFW_DL_DST|OFPFW_NW_PROTO |OFPFW_TP_SRC|OFPFW_TP_DST|OFPFW_DL_VLAN_PCP|OFPFW_NW_TOS);
+
+        // Populate the action
+        action_output = (struct ofp_action_output *)fm->actions;
+        action_output->type = htons(OFPAT_OUTPUT);
+        action_output->len = htons(8);
+        action_output->port = htons(1);
+        action_output->max_len = htons(0);
+        }
+
+
 	// Send
 	rconn_send(sw->rc,buf,NULL);
 }
@@ -469,7 +485,7 @@ void new_packet_out(struct flowvisor_context *fv_ctx, struct ofpbuf *msg)
 	opo->header.type = OFPT_PACKET_OUT;
 	opo->header.length = htons(len);
 	opo->header.xid = 0xcafebeef;
-	opo->buffer_id = htons(packet_in->buffer_id);
+	opo->buffer_id = htons(-1);
 	opo->in_port = htons(1);
 	printf("[debug]: Bufferid: %d\n",ntohs(packet_in->buffer_id));
         action_output = (struct ofp_action_output *)opo->actions;
@@ -656,7 +672,7 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 			if (packet_in_count < packet_in_total){
 				packet_in_array[packet_in_count] = cur_time;
 			}
-			packet_in_count ++;
+			
 			printf("%ld, %ld\n", packet_in_count, packet_in_total);
 
 			// Generate Flowmod
@@ -667,29 +683,29 @@ handle_switch_identified(flowvisor_context * fv_ctx, int switchIndex)
 				dst_array[packet_in_count] = dst;
                         }
               		// Generate packet out
-			new_packet_out(fv_ctx,msg);
+		//new_packet_out(fv_ctx,msg);
+		
                         if (packet_in_count < packet_in_total){
                                   packet_out_array[packet_in_count] = cur_time;
                         }
-                    	printf("[Debug] I am here \n");
+                    	packet_in_count++;
 			if (packet_in_count == packet_in_total) {
 				FILE *fin,*fout,*fmod;
 				fin = fopen("packet_in_time.txt", "w");
                                 fout = fopen("packet_out_time.txt", "w");
-                                fmod = fopen("packet_mod_time.txt", "w");
-				int j = 0;
-				
+                                fmod = fopen("packet_mod_time.txt", "w");				
+				int j;
 				for (j = 0; j < packet_in_count; j ++){
 				sip.x = src_array[j];
 				dip.x = dst_array[j];
-				fprintf(fin,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
-                                fprintf(fout,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
-                                fprintf(fmod,"src: %c.%c.%c.%c dst: %c.%c.%c.%c sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
+				fprintf(fin,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_in_array[j].tv_sec, packet_in_array[j].tv_usec);
+                                fprintf(fout,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], packet_out_array[j].tv_sec, packet_out_array[j].tv_usec);
+                                fprintf(fmod,"src: %d.%d.%d.%d dst: %d.%d.%d.%d sec: %ld, usec: %ld\n",sip.a[0],sip.a[1],sip.a[2],sip.a[3],dip.a[0],dip.a[1],dip.a[2],dip.a[3], flow_mod_array[j].tv_sec, flow_mod_array[j].tv_usec);
 				
 
 
 }
-
+				//packet_in_count = 0;
 				fclose(fin);
 				fclose(fout);
 				fclose(fmod);
